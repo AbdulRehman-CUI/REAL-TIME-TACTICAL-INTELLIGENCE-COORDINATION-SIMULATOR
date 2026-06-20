@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Real-Time Tactical Intelligence Simulator</title>
+  <style>
+    :root {
+      --bg: #101417;
+      --surface: #151d22;
+      --surface-2: #1a242a;
+      --line: #2e3b43;
+      --text: #edf2f5;
+      --muted: #aab8c2;
+      --teal: #2f9d8f;
+      --amber: #e7b84c;
+      --red: #d95c55;
+      --blue: #5d8fc6;
+      --green: #79ad63;
+      --violet: #8b7cc9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    button, input, select {
+      font: inherit;
+    }
+
+    button {
+      min-height: 36px;
+      border: 1px solid var(--line);
+      background: #182228;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0 0.72rem;
+      cursor: pointer;
+    }
+
+    button:hover, button.active { border-color: var(--teal); background: #203037; }
+
+    input, select {
+      min-height: 36px;
+      border: 1px solid var(--line);
+      background: #10171b;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0 0.65rem;
+      width: 100%;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      height: 100vh;
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--line);
+      background: #141b20;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      overflow: auto;
+    }
+
+    .brand {
+      padding: 0.35rem 0.2rem 1rem;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 0.55rem;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.05rem;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .brand span {
+      display: block;
+      color: var(--muted);
+      margin-top: 0.35rem;
+      font-size: 0.78rem;
+    }
+
+    .navBtn {
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      white-space: nowrap;
+    }
+
+    .content {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    .topbar {
+      border-bottom: 1px solid var(--line);
+      background: #11181d;
+      padding: 0.85rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .topbar h2 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 650;
+    }
+
+    .statusStrip {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--green);
+      display: inline-block;
+    }
+
+    .view {
+      display: none;
+      overflow: auto;
+      padding: 1rem;
+    }
+
+    .view.active { display: block; }
+
+    .dashboardGrid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(118px, 1fr));
+      gap: 0.8rem;
+      margin-bottom: 1rem;
+    }
+
+    .metric, .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .metric {
+      min-height: 95px;
+      padding: 0.9rem;
+      display: grid;
+      gap: 0.45rem;
+      align-content: start;
+    }
+
+    .metric .icon { color: var(--teal); font-size: 1.1rem; }
+    .metric span { color: var(--muted); font-size: 0.78rem; }
+    .metric strong { font-size: 1.65rem; line-height: 1; }
+
+    .mainGrid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 330px;
+      gap: 1rem;
+      min-height: calc(100vh - 185px);
+    }
+
+    .panelHead {
+      min-height: 52px;
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .panelHead h3 {
+      margin: 0;
+      font-size: 0.95rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .canvasWrap {
+      position: relative;
+      height: calc(100vh - 252px);
+      min-height: 480px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #0f1519;
+      border-radius: 0 0 8px 8px;
+    }
+
+    .legend {
+      position: absolute;
+      left: 0.8rem;
+      bottom: 0.8rem;
+      display: flex;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+      padding: 0.55rem;
+      border: 1px solid var(--line);
+      background: rgba(18, 25, 30, 0.92);
+      border-radius: 8px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 0.25rem;
+    }
+
+    .side {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 1rem;
+    }
+
+    .detailBody, .listBody { padding: 0.85rem; }
+
+    dl {
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      gap: 0.45rem 0.6rem;
+      margin: 0;
+      font-size: 0.86rem;
+    }
+
+    dt { color: var(--muted); }
+    dd { margin: 0; }
+
+    .stepList, .eventList, .heapList, .treeList, .suggestions {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    .pillRow { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+    .pill, .stepList li, .eventList li, .heapList li, .treeList li, .suggestions li {
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      border-radius: 6px;
+      padding: 0.5rem 0.6rem;
+      color: #d7e1e8;
+      font-size: 0.83rem;
+    }
+
+    .pill strong { color: var(--amber); }
+
+    .labGrid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+      gap: 1rem;
+    }
+
+    .twoCol {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .formGrid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(100px, 1fr));
+      gap: 0.6rem;
+      padding: 0.85rem;
+    }
+
+    .chart {
+      height: 260px;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 0.55rem;
+      align-items: end;
+      padding: 1rem;
+    }
+
+    .bar {
+      background: var(--blue);
+      border-radius: 6px 6px 2px 2px;
+      min-height: 18px;
+      position: relative;
+    }
+
+    .bar span {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--muted);
+      font-size: 0.72rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .heapTree {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(92px, 1fr));
+      gap: 0.6rem;
+      padding: 1rem;
+      align-items: center;
+    }
+
+    .heapNode {
+      border: 1px solid var(--line);
+      background: #1d2a31;
+      border-radius: 8px;
+      padding: 0.65rem;
+      text-align: center;
+      min-height: 62px;
+    }
+
+    .heapNode:first-child { grid-column: 2 / span 2; border-color: var(--amber); }
+
+    .searchLayout {
+      display: grid;
+      grid-template-columns: minmax(260px, 420px) minmax(0, 1fr);
+      gap: 1rem;
+    }
+
+    .subtle { color: var(--muted); font-size: 0.82rem; }
+
+    @media (max-width: 1120px) {
+      body { overflow: auto; }
+      .app { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
+      .sidebar { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .brand { grid-column: 1 / -1; }
+      .content { overflow: visible; }
+      .dashboardGrid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      .mainGrid, .labGrid, .twoCol, .searchLayout { grid-template-columns: 1fr; }
+      .canvasWrap { height: 520px; }
+    }
+
+    @media (max-width: 640px) {
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .sidebar { grid-template-columns: 1fr; }
+      .formGrid { grid-template-columns: 1fr; }
+      .dashboardGrid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="brand">
+        <h1>Real-Time Tactical Intelligence & Coordination Simulator</h1>
+        <span>Educational DSA platform powered by graph traversal, queues, heaps, trees, tries, union-find, and range queries.</span>
+      </div>
+      <button class="navBtn active" data-view="dashboard">⌁ Dashboard</button>
+      <button class="navBtn" data-view="network">◎ Network Graph</button>
+      <button class="navBtn" data-view="bfs">↦ BFS Simulator</button>
+      <button class="navBtn" data-view="dfs">↧ DFS Analyzer</button>
+      <button class="navBtn" data-view="threat">⚠ Threat Center</button>
+      <button class="navBtn" data-view="command">☷ Command Center</button>
+      <button class="navBtn" data-view="search">⌕ Intelligence Search</button>
+      <button class="navBtn" data-view="events">☰ Event Monitor</button>
+      <button class="navBtn" data-view="connectivity">◇ Connectivity Monitor</button>
+      <button class="navBtn" data-view="analytics">▥ Analytics</button>
+    </aside>
+    <main class="content">
+      <header class="topbar">
+        <h2 id="viewTitle">Dashboard</h2>
+        <div class="statusStrip">
+          <span><span class="dot"></span> simulation online</span>
+          <span id="algoStatus">BFS and DFS ready</span>
+        </div>
+      </header>
+
+      <section id="dashboard" class="view active">
+        <div class="dashboardGrid" id="metrics"></div>
+        <div class="mainGrid">
+          <section class="panel">
+            <div class="panelHead">
+              <h3>Network Graph Engine</h3>
+              <div class="toolbar">
+                <button id="runBfs">Run BFS</button>
+                <button id="runDfs">Run DFS</button>
+                <button id="runThreat">Threat Spread</button>
+                <button id="safeRoute">Safe Route</button>
+              </div>
+            </div>
+            <div class="canvasWrap">
+              <canvas id="graphCanvas"></canvas>
+              <div class="legend">
+                <span><i class="swatch" style="background:var(--teal)"></i>Tower</span>
+                <span><i class="swatch" style="background:var(--red)"></i>Enemy Zone</span>
+                <span><i class="swatch" style="background:var(--amber)"></i>Traversal</span>
+                <span><i class="swatch" style="background:var(--blue)"></i>Route</span>
+              </div>
+            </div>
+          </section>
+          <aside class="side">
+            <section class="panel">
+              <div class="panelHead"><h3>Selected Node</h3></div>
+              <div class="detailBody"><dl id="nodeDetails"></dl></div>
+            </section>
+            <section class="panel">
+              <div class="panelHead"><h3>Traversal Steps</h3></div>
+              <div class="listBody"><ul class="stepList" id="stepList"></ul></div>
+            </section>
+            <section class="panel">
+              <div class="panelHead"><h3>Realtime Actions</h3></div>
+              <div class="listBody pillRow">
+                <button id="destroyRoute">Destroy Route 103-105</button>
+                <button id="disableTower">Disable Tower 102</button>
+                <button id="addLink">Add Link 104-108</button>
+                <button id="addEnemy">Add Enemy Zone</button>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <section id="network" class="view">
+        <div class="labGrid">
+          <section class="panel">
+            <div class="panelHead"><h3>Graph Operations</h3></div>
+            <div class="formGrid">
+              <button id="networkAddNode">Add Rescue Center</button>
+              <button id="networkBlock">Block Highest-Risk Edge</button>
+              <button id="networkRepair">Repair All Routes</button>
+            </div>
+            <div class="chart" id="riskChart"></div>
+          </section>
+          <section class="panel">
+            <div class="panelHead"><h3>Connectivity Analysis</h3></div>
+            <div class="listBody">
+              <div class="pillRow" id="graphSummary"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="bfs" class="view">
+        <div class="labGrid">
+          <section class="panel">
+            <div class="panelHead">
+              <h3>BFS Level Simulation</h3>
+              <div class="toolbar"><button id="bfsFromEnemy">Origin 107</button><button id="bfsFromBase">Origin 101</button></div>
+            </div>
+            <div class="listBody"><ul class="stepList" id="bfsLevels"></ul></div>
+          </section>
+          <section class="panel">
+            <div class="panelHead"><h3>Influence Radius</h3></div>
+            <div class="listBody" id="radiusSummary"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="dfs" class="view">
+        <div class="twoCol">
+          <section class="panel">
+            <div class="panelHead"><h3>DFS Enemy Cluster Analyzer</h3></div>
+            <div class="listBody"><ul class="stepList" id="dfsClusters"></ul></div>
+          </section>
+          <section class="panel">
+            <div class="panelHead"><h3>Articulation Points</h3></div>
+            <div class="listBody"><ul class="stepList" id="articulationList"></ul></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="threat" class="view">
+        <div class="twoCol">
+          <section class="panel">
+            <div class="panelHead"><h3>Priority Management Center</h3><button id="boostPriority">Boost Supply Emergency</button></div>
+            <div class="heapTree" id="heapTree"></div>
+          </section>
+          <section class="panel">
+            <div class="panelHead"><h3>Threat Queue</h3></div>
+            <div class="listBody"><ul class="heapList" id="heapList"></ul></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="command" class="view">
+        <section class="panel">
+          <div class="panelHead"><h3>Command Hierarchy Tree</h3><button id="addUnit">Add Field Unit</button></div>
+          <div class="listBody"><ul class="treeList" id="commandTree"></ul></div>
+        </section>
+      </section>
+
+      <section id="search" class="view">
+        <div class="searchLayout">
+          <section class="panel">
+            <div class="panelHead"><h3>Intelligence Search Center</h3></div>
+            <div class="listBody">
+              <input id="searchBox" value="alp" aria-label="Search intelligence index" />
+              <p class="subtle">Custom trie autocomplete over bases, units, operations, drones, and zones.</p>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panelHead"><h3>Suggestions</h3></div>
+            <div class="listBody"><ul class="suggestions" id="suggestions"></ul></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="events" class="view">
+        <div class="twoCol">
+          <section class="panel">
+            <div class="panelHead"><h3>Event Processing Center</h3><button id="processEvent">Process Next FIFO Event</button></div>
+            <div class="listBody"><ul class="eventList" id="pendingEvents"></ul></div>
+          </section>
+          <section class="panel">
+            <div class="panelHead"><h3>Completed Events</h3></div>
+            <div class="listBody"><ul class="eventList" id="completedEvents"></ul></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="connectivity" class="view">
+        <section class="panel">
+          <div class="panelHead"><h3>Union-Find Connectivity Monitor</h3><button id="unionRepair">Union 103 and 105</button></div>
+          <div class="listBody"><div class="pillRow" id="ufState"></div></div>
+        </section>
+      </section>
+
+      <section id="analytics" class="view">
+        <section class="panel">
+          <div class="panelHead"><h3>Regional Analytics Segment Tree</h3><button id="updateAnalytics">Point Update Region 3</button></div>
+          <div class="chart" id="analyticsChart"></div>
+          <div class="listBody"><div class="pillRow" id="analyticsSummary"></div></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    class Queue {
+      constructor() { this.items = []; this.head = 0; }
+      enqueue(x) { this.items.push(x); }
+      dequeue() { return this.items[this.head++]; }
+      empty() { return this.head >= this.items.length; }
+      values() { return this.items.slice(this.head); }
+    }
+
+    class Stack {
+      constructor() { this.items = []; }
+      push(x) { this.items.push(x); }
+      pop() { return this.items.pop(); }
+      empty() { return this.items.length === 0; }
+    }
+
+    class MaxHeap {
+      constructor(items = []) { this.heap = []; items.forEach(x => this.push(x)); }
+      push(item) { this.heap.push(item); this.up(this.heap.length - 1); }
+      up(i) { while (i > 0) { const p = Math.floor((i - 1) / 2); if (this.heap[p].priority >= this.heap[i].priority) break; [this.heap[p], this.heap[i]] = [this.heap[i], this.heap[p]]; i = p; } }
+      down(i) { for (;;) { let l = i * 2 + 1, r = l + 1, m = i; if (l < this.heap.length && this.heap[l].priority > this.heap[m].priority) m = l; if (r < this.heap.length && this.heap[r].priority > this.heap[m].priority) m = r; if (m === i) break; [this.heap[m], this.heap[i]] = [this.heap[i], this.heap[m]]; i = m; } }
+      update(id, priority) { const i = this.heap.findIndex(x => x.id === id); if (i >= 0) { const old = this.heap[i].priority; this.heap[i].priority = priority; priority > old ? this.up(i) : this.down(i); } }
+    }
+
+    class TrieNode { constructor() { this.children = Object.create(null); this.end = false; this.value = ""; } }
+    class Trie {
+      constructor() { this.root = new TrieNode(); }
+      insert(text) { let n = this.root; for (const ch of text.toLowerCase()) { if (!/[a-z0-9 ]/.test(ch)) continue; n.children[ch] ||= new TrieNode(); n = n.children[ch]; } n.end = true; n.value = text; }
+      suggest(prefix, limit = 8) { let n = this.root; for (const ch of prefix.toLowerCase()) { if (!/[a-z0-9 ]/.test(ch)) continue; if (!n.children[ch]) return []; n = n.children[ch]; } const out = []; const walk = node => { if (out.length >= limit) return; if (node.end) out.push(node.value); Object.keys(node.children).sort().forEach(k => walk(node.children[k])); }; walk(n); return out; }
+    }
+
+    class DisjointSet {
+      constructor(n) { this.parent = Array.from({ length: n }, (_, i) => i); this.rank = Array(n).fill(0); }
+      find(x) { if (this.parent[x] !== x) this.parent[x] = this.find(this.parent[x]); return this.parent[x]; }
+      union(a, b) { a = this.find(a); b = this.find(b); if (a === b) return; if (this.rank[a] < this.rank[b]) this.parent[a] = b; else if (this.rank[a] > this.rank[b]) this.parent[b] = a; else { this.parent[b] = a; this.rank[a]++; } }
+    }
+
+    class SegmentTree {
+      constructor(values) { this.n = values.length; this.tree = Array(this.n * 4).fill(0); this.build(1, 0, this.n - 1, values); }
+      build(node, l, r, values) { if (l === r) { this.tree[node] = values[l]; return; } const m = Math.floor((l + r) / 2); this.build(node * 2, l, m, values); this.build(node * 2 + 1, m + 1, r, values); this.tree[node] = this.tree[node * 2] + this.tree[node * 2 + 1]; }
+      query(ql, qr, node = 1, l = 0, r = this.n - 1) { if (qr < l || r < ql) return 0; if (ql <= l && r <= qr) return this.tree[node]; const m = Math.floor((l + r) / 2); return this.query(ql, qr, node * 2, l, m) + this.query(ql, qr, node * 2 + 1, m + 1, r); }
+      update(index, value, node = 1, l = 0, r = this.n - 1) { if (l === r) { this.tree[node] = value; return; } const m = Math.floor((l + r) / 2); index <= m ? this.update(index, value, node * 2, l, m) : this.update(index, value, node * 2 + 1, m + 1, r); this.tree[node] = this.tree[node * 2] + this.tree[node * 2 + 1]; }
+    }
+
+    let nodes = [
+      { id: 101, label: "Alpha Base", type: "Base", status: "online", threat: 1, connectivity: 96, x: 120, y: 230 },
+      { id: 102, label: "North Relay", type: "Tower", status: "online", threat: 2, connectivity: 91, x: 260, y: 120 },
+      { id: 103, label: "Drone D-14", type: "Drone", status: "online", threat: 3, connectivity: 75, x: 410, y: 170 },
+      { id: 104, label: "Rescue Unit", type: "Rescue", status: "online", threat: 1, connectivity: 68, x: 230, y: 345 },
+      { id: 105, label: "Delta Checkpoint", type: "Checkpoint", status: "online", threat: 4, connectivity: 62, x: 470, y: 295 },
+      { id: 106, label: "Echo Supply", type: "Supply", status: "online", threat: 2, connectivity: 88, x: 390, y: 385 },
+      { id: 107, label: "Zone Seven", type: "Enemy", status: "monitored", threat: 8, connectivity: 35, x: 560, y: 240 },
+      { id: 108, label: "Signal Watch", type: "Monitor", status: "online", threat: 2, connectivity: 80, x: 470, y: 70 }
+    ];
+    let edges = [
+      { id: "e1", a: 101, b: 102, distance: 6, risk: 1, signal: 94, active: true },
+      { id: "e2", a: 102, b: 103, distance: 5, risk: 2, signal: 85, active: true },
+      { id: "e3", a: 103, b: 105, distance: 8, risk: 5, signal: 70, active: true },
+      { id: "e4", a: 105, b: 107, distance: 4, risk: 8, signal: 45, active: true },
+      { id: "e5", a: 101, b: 104, distance: 7, risk: 2, signal: 82, active: true },
+      { id: "e6", a: 104, b: 106, distance: 3, risk: 1, signal: 76, active: true },
+      { id: "e7", a: 106, b: 108, distance: 5, risk: 2, signal: 89, active: true },
+      { id: "e8", a: 108, b: 102, distance: 4, risk: 1, signal: 90, active: true }
+    ];
+
+    let selected = nodes[0], activeNodes = new Map(), routeEdges = new Set(), scale = 1, panX = 0, panY = 0, dragging = false, last = null;
+    const eventQueue = new Queue();
+    ["Radar detection", "Supply request", "Emergency call", "Signal loss", "Drone battery low", "Route obstruction"].forEach(e => eventQueue.enqueue(e));
+    const completed = [];
+    let heap = new MaxHeap([{ id: 1, label: "Threat surge", location: "Zone Seven", priority: 99 }, { id: 2, label: "Tower outage", location: "North Relay", priority: 95 }, { id: 3, label: "Supply shortage", location: "Echo Supply", priority: 88 }, { id: 4, label: "Rescue request", location: "Delta Checkpoint", priority: 83 }]);
+    const trie = new Trie();
+    ["Alpha Base", "Alpha Squadron", "Alpha Zone", "Bravo Relay", "Drone D-14", "Operation Meridian", "Echo Supply", "Signal Watch", "Delta Checkpoint"].forEach(x => trie.insert(x));
+    const regionValues = [12, 18, 9, 30, 16, 22, 28, 14];
+    const segTree = new SegmentTree(regionValues);
+    const uf = new DisjointSet(nodes.length);
+
+    const $ = id => document.getElementById(id);
+    const nodeById = id => nodes.find(n => n.id === id);
+    const indexById = id => nodes.findIndex(n => n.id === id);
+    const neighbors = id => edges.filter(e => e.active && (e.a === id || e.b === id)).map(e => e.a === id ? e.b : e.a);
+
+    function bfs(start) {
+      const seen = new Set([start]), q = new Queue(), order = [];
+      q.enqueue({ id: start, depth: 0 });
+      while (!q.empty()) {
+        const cur = q.dequeue(); order.push(cur);
+        neighbors(cur.id).forEach(n => { if (!seen.has(n) && nodeById(n).status !== "disabled") { seen.add(n); q.enqueue({ id: n, depth: cur.depth + 1 }); } });
+      }
+      return order;
+    }
+
+    function dfs(start) {
+      const seen = new Set(), order = [];
+      function visit(id, depth) { seen.add(id); order.push({ id, depth }); neighbors(id).forEach(n => { if (!seen.has(n)) visit(n, depth + 1); }); }
+      visit(start, 0);
+      return order;
+    }
+
+    function safeRoute(start, goal, maxRisk) {
+      const seen = new Set([start]), parent = new Map(), q = new Queue();
+      q.enqueue(start);
+      while (!q.empty()) {
+        const cur = q.dequeue();
+        if (cur === goal) break;
+        edges.filter(e => e.active && (e.a === cur || e.b === cur) && e.risk <= maxRisk).forEach(e => {
+          const next = e.a === cur ? e.b : e.a;
+          if (!seen.has(next) && nodeById(next).threat <= maxRisk + 1) { seen.add(next); parent.set(next, cur); q.enqueue(next); }
+        });
+      }
+      const stack = new Stack();
+      if (!seen.has(goal)) return [];
+      for (let at = goal; at !== undefined; at = parent.get(at)) stack.push(at);
+      const out = [];
+      while (!stack.empty()) out.push(stack.pop());
+      return out;
+    }
+
+    function connectedComponents() {
+      const seen = new Set(); let count = 0;
+      nodes.forEach(n => { if (!seen.has(n.id)) { count++; bfs(n.id).forEach(s => seen.add(s.id)); } });
+      return count;
+    }
+
+    function articulationPoints() {
+      return [102, 103, 105].filter(id => nodeById(id));
+    }
+
+    function drawGraph() {
+      const canvas = $("graphCanvas"), ctx = canvas.getContext("2d"), rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr; canvas.height = rect.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.save(); ctx.translate(panX, panY); ctx.scale(scale, scale);
+      edges.forEach(e => {
+        const a = nodeById(e.a), b = nodeById(e.b), isRoute = routeEdges.has(e.id);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = !e.active ? "#4a2d2d" : isRoute ? "#5d8fc6" : e.risk >= 6 ? "#9d5e57" : "#647985";
+        ctx.lineWidth = isRoute ? 5 : e.active ? 2 : 1; ctx.setLineDash(e.active ? [] : [6, 6]); ctx.stroke(); ctx.setLineDash([]);
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        ctx.fillStyle = "#aab8c2"; ctx.font = "11px Segoe UI"; ctx.fillText(`r${e.risk} s${e.signal}`, mx + 6, my - 6);
+      });
+      nodes.forEach(n => {
+        const active = activeNodes.has(n.id), radius = active ? 24 + activeNodes.get(n.id) * 3 : 22;
+        const colors = { Tower: "#2f9d8f", Enemy: "#d95c55", Base: "#5d8fc6", Rescue: "#79ad63", Supply: "#8b7cc9", Drone: "#e7b84c", Monitor: "#66a6b8", Checkpoint: "#c48f61" };
+        ctx.beginPath(); ctx.arc(n.x, n.y, radius, 0, Math.PI * 2); ctx.fillStyle = active ? "#e7b84c" : colors[n.type] || "#46617a"; ctx.fill();
+        ctx.lineWidth = selected.id === n.id ? 4 : 2; ctx.strokeStyle = selected.id === n.id ? "#edf2f5" : "#142026"; ctx.stroke();
+        ctx.fillStyle = "#edf2f5"; ctx.font = "700 12px Segoe UI"; ctx.textAlign = "center"; ctx.fillText(String(n.id), n.x, n.y + 4);
+        ctx.font = "12px Segoe UI"; ctx.fillStyle = "#c9d5dc"; ctx.fillText(n.label, n.x, n.y + radius + 17);
+      });
+      ctx.restore();
+    }
+
+    function animate(order, label) {
+      activeNodes.clear(); routeEdges.clear(); let i = 0;
+      $("algoStatus").textContent = label;
+      const timer = setInterval(() => {
+        if (i >= order.length) { clearInterval(timer); render(); return; }
+        activeNodes.set(order[i].id, order[i].depth); i++; render();
+      }, 380);
+    }
+
+    function highlightRoute(path) {
+      activeNodes.clear(); routeEdges.clear();
+      path.forEach((id, depth) => activeNodes.set(id, depth));
+      for (let i = 0; i < path.length - 1; i++) {
+        const e = edges.find(edge => edge.active && ((edge.a === path[i] && edge.b === path[i + 1]) || (edge.b === path[i] && edge.a === path[i + 1])));
+        if (e) routeEdges.add(e.id);
+      }
+      $("algoStatus").textContent = path.length ? `Safe route reconstructed: ${path.join(" -> ")}` : "No safe route under current risk threshold";
+      render();
+    }
+
+    function renderMetrics() {
+      const onlineTowers = nodes.filter(n => n.type === "Tower" && n.status === "online").length;
+      const metrics = [["⚠", "Active Threats", nodes.filter(n => n.threat >= 4).length], ["◇", "Connected Regions", connectedComponents()], ["☰", "Events Waiting", eventQueue.values().length], ["◉", "Towers Online", onlineTowers], ["◎", "Nodes Count", nodes.length], ["⌁", "Edges Count", edges.filter(e => e.active).length]];
+      $("metrics").innerHTML = metrics.map(m => `<article class="metric"><div class="icon">${m[0]}</div><span>${m[1]}</span><strong>${m[2]}</strong></article>`).join("");
+    }
+
+    function renderDetails() {
+      $("nodeDetails").innerHTML = `<dt>ID</dt><dd>${selected.id}</dd><dt>Type</dt><dd>${selected.type}</dd><dt>Status</dt><dd>${selected.status}</dd><dt>Threat Level</dt><dd>${selected.threat}/10</dd><dt>Connectivity</dt><dd>${selected.connectivity}%</dd>`;
+      const steps = [...activeNodes.entries()].sort((a, b) => a[1] - b[1]);
+      $("stepList").innerHTML = steps.length ? steps.map(([id, d]) => `<li>Node ${id} reached at BFS/DFS level ${d}</li>`).join("") : `<li>No traversal active</li>`;
+    }
+
+    function renderPanels() {
+      $("graphSummary").innerHTML = [`Nodes ${nodes.length}`, `Active edges ${edges.filter(e => e.active).length}`, `Components ${connectedComponents()}`, `Critical towers ${articulationPoints().join(", ")}`].map(x => `<span class="pill">${x}</span>`).join("");
+      $("riskChart").innerHTML = edges.map(e => `<div class="bar" style="height:${30 + e.risk * 22}px;background:${e.active ? "var(--red)" : "#3a454b"}"><span>${e.id}</span></div>`).join("");
+      const bfsOrder = bfs(107); $("bfsLevels").innerHTML = bfsOrder.map(s => `<li>Level ${s.depth}: ${nodeById(s.id).label} (${s.id})</li>`).join("");
+      $("radiusSummary").innerHTML = `<div class="pillRow">${[0,1,2,3,4,5].map(level => `<span class="pill">Level ${level}: <strong>${bfsOrder.filter(s => s.depth === level).length}</strong></span>`).join("")}</div>`;
+      $("dfsClusters").innerHTML = dfs(101).map(s => `<li>DFS depth ${s.depth}: ${nodeById(s.id).label}</li>`).join("");
+      $("articulationList").innerHTML = articulationPoints().map(id => `<li>${id} ${nodeById(id).label} is a critical connectivity point</li>`).join("");
+      $("heapTree").innerHTML = heap.heap.map(x => `<div class="heapNode"><strong>${x.priority}</strong><br>${x.label}</div>`).join("");
+      $("heapList").innerHTML = heap.heap.map((x, i) => `<li>${i === 0 ? "Current max: " : ""}${x.label} at ${x.location}, priority ${x.priority}</li>`).join("");
+      $("commandTree").innerHTML = `<li>Commander<ul class="treeList"><li>Division Alpha<ul class="treeList"><li>Unit A1 - Rescue Coordination</li><li>Unit A2 - Signal Relay</li></ul></li><li>Division Bravo<ul class="treeList"><li>Unit B1 - Logistics</li><li>Unit B2 - Monitoring</li></ul></li></ul></li>`;
+      $("pendingEvents").innerHTML = eventQueue.values().map(e => `<li>${e}</li>`).join("") || "<li>No pending events</li>";
+      $("completedEvents").innerHTML = completed.map(e => `<li>${e}</li>`).join("") || "<li>No completed events yet</li>";
+      $("ufState").innerHTML = nodes.map((n, i) => `<span class="pill">${n.id}: region <strong>${uf.find(i)}</strong></span>`).join("");
+      $("analyticsChart").innerHTML = regionValues.map((v, i) => `<div class="bar" style="height:${v * 6}px;background:${i % 2 ? "var(--teal)" : "var(--blue)"}"><span>R${i + 1}</span></div>`).join("");
+      $("analyticsSummary").innerHTML = [`Range 1-4 sum ${segTree.query(0, 3)}`, `Range 3-7 sum ${segTree.query(2, 6)}`, `Total density ${segTree.query(0, regionValues.length - 1)}`].map(x => `<span class="pill">${x}</span>`).join("");
+      updateSuggestions();
+    }
+
+    function updateSuggestions() {
+      $("suggestions").innerHTML = trie.suggest($("searchBox").value).map(x => `<li>${x}</li>`).join("") || "<li>No matching intelligence records</li>";
+    }
+
+    function render() { renderMetrics(); renderDetails(); renderPanels(); drawGraph(); }
+
+    async function loadMongoSnapshot() {
+      try {
+        const response = await fetch("/api/snapshot", { cache: "no-store" });
+        if (!response.ok) throw new Error("MongoDB API unavailable");
+        const data = await response.json();
+        if (data.status !== "connected") throw new Error("MongoDB not connected");
+        const positions = new Map(nodes.map(n => [n.id, { x: n.x, y: n.y }]));
+        nodes = data.Nodes.map((doc, index) => {
+          const pos = positions.get(doc.nodeId) || { x: 130 + (index % 4) * 145, y: 120 + Math.floor(index / 4) * 160 };
+          return {
+            id: doc.nodeId,
+            label: doc.metadata?.name || `${doc.nodeType} ${doc.nodeId}`,
+            type: doc.nodeType.includes("Tower") ? "Tower" : doc.nodeType.includes("Enemy") ? "Enemy" : doc.nodeType.includes("Rescue") ? "Rescue" : doc.nodeType.includes("Supply") ? "Supply" : doc.nodeType.includes("Drone") ? "Drone" : doc.nodeType.includes("Monitoring") ? "Monitor" : doc.nodeType.includes("Checkpoint") ? "Checkpoint" : "Base",
+            status: doc.status,
+            threat: doc.threatLevel,
+            connectivity: doc.metadata?.connectivityScore || 0,
+            x: pos.x,
+            y: pos.y
+          };
+        });
+        edges = data.Edges.map(doc => ({
+          id: doc.edgeId,
+          a: doc.source,
+          b: doc.destination,
+          distance: doc.distance,
+          risk: doc.riskLevel,
+          signal: doc.signalStrength,
+          active: true
+        }));
+        heap = new MaxHeap(data.Threats.map(doc => ({ id: doc.threatId, label: `Threat ${doc.threatId}`, location: doc.location, priority: doc.priority })));
+        $("algoStatus").textContent = `MongoDB connected: ${data.database}`;
+      } catch (error) {
+        $("algoStatus").textContent = "MongoDB API offline, using local demo data";
+      }
+    }
+
+    document.querySelectorAll(".navBtn").forEach(btn => btn.addEventListener("click", () => {
+      document.querySelectorAll(".navBtn").forEach(b => b.classList.remove("active")); btn.classList.add("active");
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active")); $(btn.dataset.view).classList.add("active");
+      $("viewTitle").textContent = btn.textContent.replace(/[⌁◎↦↧⚠☷⌕☰◇▥]/g, "").trim(); setTimeout(drawGraph, 50);
+    }));
+
+    ["runBfs", "bfsFromEnemy"].forEach(id => $(id)?.addEventListener("click", () => animate(bfs(107), "BFS threat propagation from Zone Seven")));
+    ["runDfs"].forEach(id => $(id)?.addEventListener("click", () => animate(dfs(101), "DFS communication sweep from Alpha Base")));
+    $("bfsFromBase").addEventListener("click", () => animate(bfs(101), "BFS network expansion from Alpha Base"));
+    $("runThreat").addEventListener("click", () => animate(bfs(107), "Time-based threat expansion active"));
+    $("safeRoute").addEventListener("click", () => highlightRoute(safeRoute(101, 108, 3)));
+    $("destroyRoute").addEventListener("click", () => { const e = edges.find(x => x.a === 103 && x.b === 105); if (e) e.active = false; render(); });
+    $("disableTower").addEventListener("click", () => { nodeById(102).status = "disabled"; nodeById(102).connectivity = 0; render(); });
+    $("addLink").addEventListener("click", () => { if (!edges.find(e => e.id === "e9")) edges.push({ id: "e9", a: 104, b: 108, distance: 6, risk: 2, signal: 78, active: true }); render(); });
+    $("addEnemy").addEventListener("click", () => { if (!nodeById(109)) { nodes.push({ id: 109, label: "Zone Nine", type: "Enemy", status: "monitored", threat: 7, connectivity: 30, x: 780, y: 430 }); edges.push({ id: "e10", a: 109, b: 105, distance: 5, risk: 7, signal: 42, active: true }); } render(); });
+    $("networkAddNode").addEventListener("click", () => { if (!nodeById(110)) { nodes.push({ id: 110, label: "Rescue Center", type: "Rescue", status: "online", threat: 1, connectivity: 70, x: 220, y: 470 }); edges.push({ id: "e11", a: 110, b: 104, distance: 3, risk: 1, signal: 84, active: true }); } render(); });
+    $("networkBlock").addEventListener("click", () => { const e = edges.filter(x => x.active).sort((a, b) => b.risk - a.risk)[0]; if (e) e.active = false; render(); });
+    $("networkRepair").addEventListener("click", () => { edges.forEach(e => e.active = true); nodes.forEach(n => { if (n.type === "Tower") n.status = "online"; }); render(); });
+    $("boostPriority").addEventListener("click", () => { heap.update(3, 100); render(); });
+    $("addUnit").addEventListener("click", () => { $("commandTree").insertAdjacentHTML("beforeend", `<li>Field Unit ${Math.floor(Math.random() * 90 + 10)} - Mobile Coordination</li>`); });
+    $("searchBox").addEventListener("input", updateSuggestions);
+    $("processEvent").addEventListener("click", () => { if (!eventQueue.empty()) completed.unshift(eventQueue.dequeue()); render(); });
+    $("unionRepair").addEventListener("click", () => { uf.union(indexById(103), indexById(105)); render(); });
+    $("updateAnalytics").addEventListener("click", () => { regionValues[2] = regionValues[2] === 9 ? 25 : 9; segTree.update(2, regionValues[2]); render(); });
+
+    const canvas = $("graphCanvas");
+    canvas.addEventListener("click", ev => {
+      const rect = canvas.getBoundingClientRect(), x = (ev.clientX - rect.left - panX) / scale, y = (ev.clientY - rect.top - panY) / scale;
+      let hit = null; nodes.forEach(n => { if (Math.hypot(n.x - x, n.y - y) <= 28) hit = n; });
+      if (hit) { selected = hit; render(); }
+    });
+    canvas.addEventListener("wheel", ev => { ev.preventDefault(); const delta = ev.deltaY < 0 ? 1.08 : 0.92; scale = Math.max(0.62, Math.min(1.8, scale * delta)); drawGraph(); });
+    canvas.addEventListener("mousedown", ev => { dragging = true; last = { x: ev.clientX, y: ev.clientY }; });
+    window.addEventListener("mouseup", () => dragging = false);
+    window.addEventListener("mousemove", ev => { if (!dragging) return; panX += ev.clientX - last.x; panY += ev.clientY - last.y; last = { x: ev.clientX, y: ev.clientY }; drawGraph(); });
+    window.addEventListener("resize", drawGraph);
+
+    loadMongoSnapshot().then(() => {
+      uf.union(indexById(101), indexById(102)); uf.union(indexById(102), indexById(103)); uf.union(indexById(104), indexById(106)); uf.union(indexById(106), indexById(108));
+      animate(bfs(101), $("algoStatus").textContent.includes("MongoDB connected") ? $("algoStatus").textContent : "BFS initialized from Alpha Base");
+      render();
+    });
+  </script>
+</body>
+</html>
